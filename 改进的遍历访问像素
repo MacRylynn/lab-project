@@ -1,0 +1,22 @@
+for (int i = 0; i < Vchannel.rows; ++i)
+	{
+		uchar* line1 = Hchannel.ptr<uchar>(i);
+		uchar* line2 = Schannel.ptr<uchar>(i);
+		uchar* line3 = Vchannel.ptr<uchar>(i);
+		for (int j = 0; j < Vchannel.cols*3; ++j)
+		{
+			//获取每个点的HSV各个通道的值
+			
+			Hvalue = line1[j];
+			Svalue = line2[j];
+			Vvalue = line3[j];
+			/*cout << Hvalue << "   " << Svalue << "   " << Vvalue << endl;*/
+			//找到符合范围的点
+			if (((Hvalue > 105 && Hvalue < 130) && (Svalue > 43 && Svalue < 255)) && (Vvalue > 46 && Vvalue < 255))
+				Redcounter++;
+			else if (((Hvalue > 0 && Hvalue < 180) && (Svalue > 0 && Svalue < 255)) && (Vvalue >0 && Vvalue <46))
+				Blackcounter++;
+			else if (((Hvalue > 90 && Hvalue < 105) && (Svalue >43 && Svalue < 255)) && (Vvalue > 46 && Vvalue < 255))
+				Yellowcounter++;
+		}
+	}
