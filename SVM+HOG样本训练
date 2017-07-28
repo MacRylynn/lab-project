@@ -1,0 +1,127 @@
+void StateSVM(int PosSamNO,int NegSamNO,char* PathPos,char* PathNeg)
+{
+	/*StateSVM(int PosSamNO,int NegSamNO,char* PathPos,char* PathNeg)参数详解
+	PosSamNO:正样本的个数
+	NegSamNO:负样本的个数
+	PathPos: 正样本的路径
+	PathNeg: 负样本的路径
+	注   意：正样本的个数应该尽量和负样本个数一致*/
+	HOGDescriptor hog(imageSize, Size(16, 16), Size(8, 8), Size(8, 8), 9, 1, 1, 0.2, 1, 1, 64, 1);
+	int DescriptorDim;
+	Ptr<SVM> svm = SVM::create();
+	string ImgName;
+	ifstream finPos("positive_samples.txt");
+	ifstream finNeg("negative_samples.txt");
+
+	if (!finPos || !finNeg)
+	{
+		cout << "Pos/Neg imglist reading failed..." << endl;
+	}
+
+	Mat sampleFeatureMat;
+	Mat sampleLabelMat;
+
+	//loading original positive examples...
+	for (int num = 0; num < PosSamNO && getline(finPos, ImgName); num++)
+	{
+		cout << "Now processing original positive image: " << ImgName << endl;
+		ImgName = PathPos + ImgName;
+		Mat src = imread(ImgName);
+
+		//if (CENTRAL_CROP)
+		//	src = src(Rect(16, 16, 64, 128));
+		resize(src, src, imageSize);
+		vector<float> descriptors;
+		hog.compute(src, descriptors, Size(1, 1));//计算HOG描述子，检测窗口移动步长(8,8)
+
+		if (0 == num)
+		{
+			DescriptorDim = descriptors.size();
+			sampleFeatureMat = Mat::zeros(PosSamNO + AugPosSamNO + NegSamNO + HardExampleNO, DescriptorDim, CV_32FC1);
+			sampleLabelMat = Mat::zeros(PosSamNO + AugPosSamNO + NegSamNO + HardExampleNO, 1, CV_32SC1);//sampleLabelMat的数据类型必须为有符号整数型
+		}
+
+		//将计算好的HOG描述子复制到样本特征矩阵sampleFeatureMat
+		for (int i = 0; i<DescriptorDim; i++)
+			sampleFeatureMat.at<float>(num, i) = descriptors[i];
+		sampleLabelMat.at<int>(num, 0) = 1;
+	}
+	finPos.close();
+
+	//positive examples augmenting...
+	/*if (AugPosSamNO > 0)
+	{
+	ifstream finAug("DATA/AugPosImgList.txt");
+	if (!finAug)
+	{
+	cout << "Aug positive imglist reading failed..." << endl;
+	return 1;
+	}
+	for (int num = 0; num < AugPosSamNO && getline(finAug, ImgName); ++num)
+	{
+	cout << "Now processing Aug positive image: " << ImgName << endl;
+	//ImgName = "DATA/INRIAPerson/AugPos/" + ImgName;
+	Mat src = imread(ImgName);
+	vector<float> descriptors;
+	hog.compute(src, descriptors, Size(8, 8));
+	for (int i = 0; i < DescriptorDim; ++i)
+	sampleFeatureMat.at<float>(num + PosSamNO, i) = descriptors[i];
+	sampleLabelMat.at<int>(num + PosSamNO, 0) = 1;
+	}
+	finAug.close();
+	}*/
+
+	//loading original negative examples...
+	for (int num = 0; num < NegSamNO && getline(finNeg, ImgName); num++)
+	{
+		cout << "Now processing original negative image: " << ImgName << endl;
+		ImgName = PathNeg + ImgName;
+		Mat src = imread(ImgName);
+		cv::resize(src, src, imageSize);
+		vector<float> descriptors;
+		hog.compute(src, descriptors, Size(1, 1));
+
+		for (int i = 0; i<DescriptorDim; i++)
+			sampleFeatureMat.at<float>(num + PosSamNO, i) = descriptors[i];
+		sampleLabelMat.at<int>(num + PosSamNO + AugPosSamNO, 0) = -1;
+
+	}
+	finNeg.close();
+	//loading hard examples...
+	/*if (HardExampleNO > 0)
+	{
+	ifstream finHardExample("hard_samples_d.txt");
+	if (!finHardExample)
+	{
+	cout << "HardExample list reading failed..." << endl;
+	return 1;
+	}
+
+	for (int num = 0; num < HardExampleNO && getline(finHardExample, ImgName); num++)
+	{
+	cout << "Now processing hard negative image: " << ImgName << endl;
+	Mat src = imread(ImgName);
+	cv::resize(src, src, cv::Size(64, 128));
+	vector<float> descriptors;
+	hog.compute(src, descriptors, Size(8, 8));
+
+	for (int i = 0; i<DescriptorDim; i++)
+	sampleFeatureMat.at<float>(num + PosSamNO + NegSamNO, i) = descriptors[i];
+	sampleLabelMat.at<int>(num + PosSamNO + AugPosSamNO + NegSamNO, 0) = -1;
+	}
+	finHardExample.close();
+	}*/
+
+	svm->setType(SVM::C_SVC);
+	svm->setC(0.001);
+	svm->setKernel(SVM::RBF);
+	svm->setTermCriteria(TermCriteria(TermCriteria::MAX_ITER, 3000, 6e-3));
+
+	cout << "Starting training..." << endl;
+	svm->train(sampleFeatureMat, ROW_SAMPLE, sampleLabelMat);
+	cout << "Finishing training..." << endl;
+	cout << "Start to save XML result" << endl;
+	svm->save("SVM_HOG.xml");
+	cout << "Finising saving" << endl;
+
+}
