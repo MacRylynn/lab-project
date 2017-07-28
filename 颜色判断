@@ -1,0 +1,55 @@
+void ColorTest (Mat src,int Xpos,int Ypos,int ImgWidth,int ImgHeight)
+{
+	/*ColorTest (Mat src,int Xpos,int Ypos,int ImgWidth,int ImgHeight)参数详解
+	src:      传进的需要检测图像
+	Xpos:     需要检测图像区域左上角的x值
+	Ypos:     需要检测图像区域左上角的y值
+	ImgWidth: 需要检测区域的宽
+	ImgHeight:需要检测区域的高*/
+  
+  
+	Mat HSVimg;
+	vector<Mat> channels;
+	Mat RGBimg = src.clone();
+	RGBimg = RGBimg(Rect(Xpos, Ypos, ImgWidth, ImgHeight));
+	//***********************判断颜色******************************//
+	cvtColor(RGBimg, HSVimg, CV_RGB2HSV);//RGB转为HSV
+	split(HSVimg, channels); //分离并且获取每一个通道
+	Mat Hchannel, Schannel, Vchannel;
+	Vchannel = channels[2];
+	Schannel = channels[1];
+	Hchannel = channels[0];//得到H,S,V通道
+	//判断颜色类型
+	int Redcounter = 0, Yellowcounter = 0, Blackcounter = 0;
+	float Hvalue, Svalue, Vvalue;
+	for (int i = 0; i < Vchannel.rows; ++i)
+	{
+		for (int j = 0; j < Vchannel.cols; ++j)
+		{
+			//获取每个点的HSV各个通道的值
+			Hvalue = Hchannel.at<uchar>(i, j);
+			Svalue = Schannel.at<uchar>(i, j);
+			Vvalue = Vchannel.at<uchar>(i, j);
+			/*cout << Hvalue << "   " << Svalue << "   " << Vvalue << endl;*/
+			//找到符合范围的点
+			if (((Hvalue > 105 && Hvalue < 130) && (Svalue > 43 && Svalue < 255)) && (Vvalue > 46 && Vvalue < 255))
+			Redcounter++;
+			else if (((Hvalue > 0 && Hvalue < 180) && (Svalue > 0 && Svalue < 255)) && (Vvalue >0 && Vvalue <46))
+			Blackcounter++;
+			else if (((Hvalue > 90 && Hvalue < 105) && (Svalue >43 &&Svalue < 255)) && (Vvalue > 46 &&Vvalue < 255))
+			Yellowcounter++;
+		}
+	}
+	//输出每个颜色点的个数
+	/*cout << "红点：" << Redcounter << endl << "黄点：" << Yellowcounter<<endl << "黑点：" << Blackcounter << endl;*/
+	//判断颜色
+	cout << "颜色判断......"<<endl;
+	if ((Redcounter > Yellowcounter) && (Redcounter > Blackcounter))
+		cout << "该样本是:红色" << endl;
+	else if ((Yellowcounter > Redcounter) && (Yellowcounter > Blackcounter))
+		cout << "该样本是:黄色" << endl;
+	else if ((Blackcounter > Redcounter) && (Blackcounter > Yellowcounter))
+		cout << "该样本是:黑色" << endl;
+	else
+		cout << "颜色检测检测失败" << endl;
+}
