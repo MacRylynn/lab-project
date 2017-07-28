@@ -1,0 +1,54 @@
+void StateTest(Mat ORGimg,int StateValue)
+{
+	Ptr<SVM> svm = StatModel::load<SVM>("SVM_HOG.xml");
+	Mat svecsmat = svm->getSupportVectors();//svecsmat元素的数据类型为float
+	int svdim = svm->getVarCount();//特征向量位数
+	int numofsv = svecsmat.rows;
+	Mat alphamat = Mat::zeros(numofsv, svdim, CV_32F);//alphamat和svindex必须初始化，否则getDecisionFunction()函数会报错
+	Mat svindex = Mat::zeros(1, numofsv, CV_64F);
+
+	Mat Result;
+	double rho = svm->getDecisionFunction(0, alphamat, svindex);
+	alphamat.convertTo(alphamat, CV_32F);//将alphamat元素的数据类型重新转成CV_32F
+	Result = -1 * alphamat * svecsmat;//float
+
+	vector<float> vec;
+	for (int i = 0; i < svdim; ++i)
+	{
+		vec.push_back(Result.at<float>(0, i));
+	}
+	vec.push_back(rho);
+	//saving HOGDetectorForOpenCV.txt
+	ofstream fout("HOGDetectorForOpenCV.txt");
+	for (int i = 0; i < vec.size(); ++i)
+	{
+		fout << vec[i] << endl;
+	}
+	/*********************************Testing**************************************************/
+	//Mat src = imread("G12.jpg");//读入图像
+	Mat src = ORGimg.clone();
+	cv::resize(src, src, imageSize);
+	HOGDescriptor hog_test(imageSize, Size(16, 16), Size(8, 8), Size(8, 8), 9, 1, 1, 0.2, 1, 1, 64, 1);
+	hog_test.setSVMDetector(vec);//使用自己的训练器
+	vector<float> descriptors;
+	hog_test.compute(src, descriptors, Size(1, 1), Size(0, 0));
+	/*cout << "The Detection Result:" << endl;
+	cout << "HOG dims: " << descriptors.size() << endl;*/
+	Mat SVMtrainMat = Mat::zeros(1, descriptors.size(), CV_32F);
+	int n = 0;
+	for (vector<float>::iterator iter = descriptors.begin(); iter != descriptors.end(); iter++)
+	{
+		SVMtrainMat.at<float>(0, n) = *iter;
+		n++;
+	}
+	float ret = svm->predict(SVMtrainMat);
+	/*cout << ret << endl;*/
+	if (ret == 1)
+	{
+		StateValue = 1;
+	}
+	else
+	{
+		StateValue = 0;
+	}
+} 
